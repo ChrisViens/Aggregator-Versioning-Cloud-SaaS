@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Version Aggregator</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.socket.io/4.4.1/socket.io.min.js"></script>
+    <style>
+        .action-btn {
+            position: relative;
+            transition: transform 0.2s ease, opacity 0.2s ease, background-color 0.3s ease;
+        }
+    
+        .action-btn:active {
+            transform: scale(0.95); /* Effetto di compressione */
+            background-color: rgba(0, 0, 0, 0.1); /* Leggera ombreggiatura */
+        }
+    
+        .action-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .icon-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-bottom: 20px; /* Spaziatura tra l'icona e il titolo */
+        }   
+
+        .center-icon {
+        width: 80px; /* Regola la dimensione dell'icona */
+        height: auto;
+        } 
+        .modal-footer {
+        justify-content: center; /* Centra il pulsante nel footer */
+         }
+    </style>
+    
+</head>
+<body>
+    <!-- Modal Bootstrap -->
+    <div class="modal fade" id="popupModal" tabindex="-1" aria-labelledby="popupModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="popupModalTitle"></h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <p id="popupModalMessage"></p>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="icon-container text-center">
+        <img src="{{ url_for('static', filename='aggregate.png') }}" alt="Logo" style="width: 80px; height: 80px;">
+    </div>
+    <div class="container" style="margin-top: 1rem; margin-bottom: 2rem;">
+        <h1 class="text-center text-primary">File Versioning Aggregator</h1>
+        <p class="text-center text-muted">Gestisci il versioning dei tuoi file su diverse piattaforme cloud.</p>
+
+        <!-- Pulsante Configura -->
+        <div class="text-center mb-4">
+            <button class="btn btn-primary btn-lg my-2" onclick="showConfigModal()"><img src="{{ url_for('static', filename='config.png') }}" alt="Logo" style="width: 40px; height: 40px;"> Configura Estrattori</button>
+        </div>
+        <!-- Pulsanti per estrattori -->
+        <div class="text-center">
+            <button class="btn btn-info btn-lg mx-2 action-btn" id="dropboxBtn" onclick="fetchData('/extract/dropbox' , 'dropboxBtn')"><img src="{{ url_for('static', filename='dropbox.png') }}" alt="Logo" style="width: 40px; height: 40px;"> Dropbox</button>
+            <button class="btn btn-warning btn-lg mx-2 action-btn" id="gdriveBtn" onclick="fetchGDriveData('gdriveBtn')"><img src="{{ url_for('static', filename='drive.png') }}" alt="Logo" style="width: 40px; height: 40px;"> Google Drive</button>
+            <button class="btn btn-lg action-btn" style="background-color: #001f3f; color: white;" id="onedriveBtn" onclick="fetchOneDrive('onedriveBtn')"><img src="{{ url_for('static', filename='onedrive.png') }}" alt="Logo" style="width: 40px; height: 40px;"> OneDrive</button>
+        </div>
+        <!-- Modal di configurazione -->
+        <div id="configModal" class="modal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Configura Estrattori</h5>
+                        <button type="button" class="btn-close" onclick="closeConfigModal()"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="configForm">
+                            <div class="mb-3">
+                                <label for="extractorType" class="form-label">Tipo di Estrattore</label>
+                                <select id="extractorType" class="form-select" onchange="updateFields()">
+                                    <option value="gdrive">Google Drive</option>
+                                    <option value="dropbox">Dropbox</option>
+                                    <option value="onedrive">OneDrive</option>
+                                </select>
+                            </div>
+                            <div id="dynamicFields">
+                                <!-- Campi dinamici aggiunti qui -->
+                            </div>
+                            <button type="button" class="btn btn-success mt-3" onclick="saveConfig()">Salva Configurazione</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Indicatore di caricamento -->
+<div id="loadingSpinner" class="text-center my-3" style="display: none;">
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Caricamento...</span>
+    </div>
+</div>
+        <!-- Tabella per i risultati -->
+        <div class="container" style="margin-top: 1rem; margin-bottom: 2rem;">
+            <h2 class="text-center">Risultati</h2>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Nome File</th>
+                        <th>Autore</th>
+                        <th>Ultima Modifica</th>
+                        <th>Versione</th>
+                        <th>Dimensione</th>
+                    </tr>
+                </thead>
+                <tbody id="outputTable">
+                    <!-- Righe generate dinamicamente -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+<script>
+    function showLoading(show) {
+    const spinner = document.getElementById('loadingSpinner');
+    spinner.style.display = show ? 'block' : 'none';
+    }
+
+    function toggleButtonState(buttonId, isDisabled) {
+    if (!buttonId) {
+        console.error("ID del pulsante non fornito.");
+        return;
+    }
+
+    const button = document.getElementById(buttonId);
+    if (!button) {
+        console.error(`Pulsante con ID "${buttonId}" non trovato.`);
+        return;
+    }
+
+    button.disabled = isDisabled;
+    button.style.opacity = isDisabled ? '0.6' : '1';
+    }
+
+    function showPopup(message, code) {
+    const linkRegex = /(https?:\/\/[^\s]+)/g;
+    const formattedMessage = message.replace(linkRegex, match => {
+        return `<a href="${match}" target="_blank">${match}</a>`;
+    });
+
+    // Aggiungi il codice a capo
+    const finalMessage = `${formattedMessage}<br>Inserisci il codice : <b>${code}</b>`;
+
+    const modalTitleElement = document.getElementById('popupModalTitle');
+    const modalMessageElement = document.getElementById('popupModalMessage');
+
+    modalTitleElement.innerHTML = "Autenticazione necessaria";
+    modalMessageElement.innerHTML = finalMessage.trim();
+
+    const modal = new bootstrap.Modal(document.getElementById('popupModal'));
+    modal.show();
+}
+
+    let activeButtonId = null;
+
+    const socket = io(); // Inizializza la connessione WebSocket
+
+    socket.on('output', (data) => {
+    try {
+        const parsedData = data.data;
+
+        if (!parsedData || typeof parsedData !== 'object') {
+            throw new Error("Formato dei dati non valido");
+        }
+
+        // Gestione dei vari stadi
+        if (parsedData.stage === 1) {
+            showPopup(parsedData.message || "Messaggio non disponibile", parsedData.user_code);
+        } else if (parsedData.stage === 2) {
+            showLoading(false);
+            const tableBody = document.getElementById('outputTable');
+            tableBody.innerHTML = ''; // Svuota la tabella
+
+            if (!parsedData.files || parsedData.files.length === 0) {
+                const noDataRow = `<tr><td colspan="5" class="text-center">Nessun file trovato</td></tr>`;
+                tableBody.innerHTML = noDataRow;
+                return;
+            }
+
+            parsedData.files.forEach(file => {
+                file.versions.forEach(version => {
+                    const row = `<tr>
+                        <td>${file.path || file.name || "N/A"}</td>
+                        <td>${version.author || file.author || "N/A"}</td>
+                        <td>${version.lastModified || "N/A"}</td>
+                        <td>${version.id || "N/A"}</td>
+                        <td>${version.size || "N/A"} bytes</td>
+                    </tr>`;
+                    tableBody.innerHTML += row;
+                });
+            });
+            if (activeButtonId) {
+            toggleButtonState(activeButtonId, false);
+            activeButtonId = null; // Resetta la variabile
+        }
+        } else if (parsedData.stage === "error") {
+            showPopup(`Errore: ${parsedData.message}`);
+        } else {
+            console.warn("Stadio sconosciuto:", parsedData.stage);
+        }
+    } catch (error) {
+        console.error("Errore durante l'elaborazione dei dati:", error);
+        alert("Errore nella risposta ricevuta dal server.");
+        if (activeButtonId) {
+            toggleButtonState(activeButtonId, false);
+            activeButtonId = null; // Resetta la variabile
+        }
+    }
+    });
+
+        let currentConfig = {};
+
+        async function fetchGDriveData(buttonId) {
+        try {
+            toggleButtonState(buttonId, true);
+            showLoading(true);
+            const response = await fetch('/extract/gdrive', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ folder_id: 'root' })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                populateTableGdrive(result.data, buttonId);
+            } else {
+                alert("Errore durante l'estrazione: " + result.error);
+            }
+        } catch (error) {
+            alert("Errore di rete: " + error.message);
+        }
+        }
+        async function showConfigModal() {
+            try {
+                const response = await fetch('/get-configurations');
+                currentConfig = await response.json();
+                document.getElementById('configModal').style.display = 'block';
+                updateFields();
+            } catch (error) {
+                alert("Errore nel caricamento delle configurazioni: " + error.message);
+            }
+        }
+        function closeConfigModal() {
+            document.getElementById('configModal').style.display = 'none';
+        }
+
+        function updateFields() {
+            const extractorType = document.getElementById('extractorType').value;
+            const dynamicFields = document.getElementById('dynamicFields');
+
+            dynamicFields.innerHTML = '';
+
+            if (extractorType === 'dropbox') {
+                const dropboxConfig = currentConfig.dropbox || {};
+                dynamicFields.innerHTML = `
+                    <div class="mb-3">
+                        <label for="APP_KEY" class="form-label">App Key</label>
+                        <input type="text" id="APP_KEY" class="form-control" value="${dropboxConfig.APP_KEY || ''}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="APP_SECRET" class="form-label">App Secret</label>
+                        <input type="text" id="APP_SECRET" class="form-control" value="${dropboxConfig.APP_SECRET || ''}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="ACCESS_TOKEN" class="form-label">Access Token</label>
+                        <input type="text" id="ACCESS_TOKEN" class="form-control" value="${dropboxConfig.ACCESS_TOKEN || ''}">
+                    </div>`;
+            } else if (extractorType === 'onedrive') {
+                const onedriveConfig = currentConfig.azure || {};
+                dynamicFields.innerHTML = `
+                    <div class="mb-3">
+                        <label for="clientId" class="form-label">Client ID</label>
+                        <input type="text" id="clientId" class="form-control" value="${onedriveConfig.clientId || ''}">
+                    </div>`;
+            } else if (extractorType === 'gdrive') {
+    const gdriveSettings = currentConfig.gdrive?.web || {};
+    const fields = Object.entries(gdriveSettings).map(([key, value]) => `
+        <div class="mb-3">
+            <label class="form-label">${key.toUpperCase()}</label>
+            <input type="text" class="form-control" value="${value || ''}" readonly>
+        </div>`).join('');
+
+    dynamicFields.innerHTML = fields;
+
+    // Aggiungi il pulsante per caricare il file Secret.json
+    dynamicFields.innerHTML += `
+        <div class="mb-3">
+            <label for="secretFile" class="form-label">Carica il file secret.json:</label>
+            <input type="file" id="secretFile" class="form-control">
+        </div>`;
+}
+
+        }
+
+        async function saveConfig() {
+            const extractorType = document.getElementById('extractorType').value;
+            let payload = {};
+
+            if (extractorType === 'dropbox') {
+                payload = {
+                    APP_KEY: document.getElementById('APP_KEY').value,
+                    APP_SECRET: document.getElementById('APP_SECRET').value,
+                    ACCESS_TOKEN: document.getElementById('ACCESS_TOKEN').value
+                };
+            } else if (extractorType === 'onedrive') {
+                payload = {
+                    clientId: document.getElementById('clientId').value
+                };
+            } else if (extractorType === 'gdrive') {
+                const fileInput = document.getElementById('secretFile');
+                const file = fileInput.files[0];
+
+                if (!file) {
+                    alert("Seleziona un file.");
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append('secret', file);
+
+                try {
+                    const response = await fetch('/upload/secret', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const result = await response.json();
+                    if (result.success) {
+                        alert(result.message);
+                    } else {
+                        alert("Errore: " + result.error);
+                    }
+                } catch (error) {
+                    alert("Errore di rete: " + error.message);
+                }
+
+                return; // Esci per evitare di inviare una richiesta vuota
+            }
+
+            const response = await fetch(`/configure/${extractorType}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+
+            const result = await response.json();
+            alert(result.message || "Configurazione salvata.");
+            closeConfigModal();
+        }
+        async function fetchData(endpoint, buttonId) {
+        try {
+            toggleButtonState(buttonId, true);
+            showLoading(true);
+            const response = await fetch(endpoint, { method: 'POST' });
+            const result = await response.json();
+            populateTable(result.data, buttonId);
+        } catch (error) {
+            alert("Errore di rete: " + error.message);
+        }
+    }
+    async function fetchOneDrive(buttonId) {
+        try {
+            activeButtonId = buttonId;
+            toggleButtonState(buttonId, true);
+            showLoading(true);
+            const response = await fetch('/extract/onedrive', { method: 'POST' });
+            const result = await response.json();
+            if (result.success) {
+                console.log("DEBUG: Processo avviato.");
+            } else {
+                alert("Errore: " + result.error);
+            }
+        } catch (err) {
+            alert("Errore di rete: " + err.message);
+        }
+    }
+    function populateTableGdrive(files, buttonId) {
+    showLoading(false);
+    const tableBody = document.getElementById('outputTable');
+    tableBody.innerHTML = ''; // Svuota la tabella
+
+    files.forEach(file => {
+        file.revisions.forEach(revision => {
+            const row = `<tr>
+                <td>${file.file_name || "N/A"}</td>
+                <td>${file.owner || "N/A"}</td>
+                <td>${revision.modifiedTime || "N/A"}</td>
+                <td>${revision.readableVersion || "N/A"}</td>
+                <td>${revision.size || "N/A"} bytes</td>
+            </tr>`;
+            tableBody.innerHTML += row;
+        });
+    });
+    toggleButtonState(buttonId, false);
+    }
+        function populateTable(files, buttonId) {
+            showLoading(false);
+            const tableBody = document.getElementById('outputTable');
+            tableBody.innerHTML = ''; // Svuota la tabella
+            files.forEach(file => {
+                const row = `<tr>
+                    <td>${file["Nome"] || "N/A"}</td>
+                    <td>${file["Autore"] || "N/A"}</td>
+                    <td>${file["Ultima modifica (UTC +0)"] || "N/A"}</td>
+                    <td>${file["Versione"] || "N/A"}</td>
+                    <td>${file["Dimensione (byte)"] || "N/A"}</td>
+                </tr>`;
+                tableBody.innerHTML += row;
+            });
+            toggleButtonState(buttonId, false);
+        }
+async function uploadSecret(event) {
+            event.preventDefault();
+            const fileInput = document.getElementById('secretFile');
+            const file = fileInput.files[0];
+            if (!file) {
+                alert("Seleziona un file");
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('secret', file);
+
+            try {
+                const response = await fetch('/upload/secret', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+            } catch (error) {
+                alert("Errore di rete: " + error.message);
+            }
+        }
+    </script>
+</html>
