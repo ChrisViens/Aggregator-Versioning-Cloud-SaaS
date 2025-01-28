@@ -4,4 +4,3 @@
 -Report unificato dei servizi
 -Visualizzare i file (file cliccabili)
 -Indicare tipo di file (txt,xls…)
-Git hub tutta la documentazione progetto e prodotto e link.
