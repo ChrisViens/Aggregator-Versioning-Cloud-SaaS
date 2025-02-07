@@ -10,14 +10,16 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.socket.io/4.4.1/socket.io.min.js"></script>
     <style>
+        h5 {
+        text-align: center; 
+        }
         .action-btn {
             position: relative;
             transition: transform 0.2s ease, opacity 0.2s ease, background-color 0.3s ease;
         }
-    
         .action-btn:active {
-            transform: scale(0.95); /* Effetto di compressione */
-            background-color: rgba(0, 0, 0, 0.1); /* Leggera ombreggiatura */
+            transform: scale(0.95); 
+            background-color: rgba(0, 0, 0, 0.1);
         }
     
         .action-btn:disabled {
@@ -28,18 +30,62 @@
         display: flex;
         justify-content: center;
         align-items: center;
-        margin-bottom: 20px; /* Spaziatura tra l'icona e il titolo */
+        margin-bottom: 20px; 
         }   
 
         .center-icon {
-        width: 80px; /* Regola la dimensione dell'icona */
+        width: 80px; 
         height: auto;
         } 
         .modal-footer {
-        justify-content: center; /* Centra il pulsante nel footer */
+        justify-content: center; 
          }
+         .no-wrap {
+        white-space: nowrap;
+        text-align: center;  
+        }
+        .table {
+        width: 100%;
+        table-layout: auto; 
+        margin: 0; 
+        padding: 0; 
+        }
+        .table th, .table td {
+            text-align: left; 
+        }
+        .table-striped {
+            width: 100%;
+        }
+
+        #outputTable {
+            width: 100%;
+        }
+        .container {
+        width: 100%;
+        max-width: 100%;
+        padding: 0;
+        margin: 0;
+        }
+        a.file-link {
+        text-decoration: none; 
+        font-weight: bold;
+            color: black; 
+        }
+        a.file-link:hover {
+            color: #555; 
+        }
+        #connected-users-container {
+        text-align: center; 
+            }
+        #user-info {
+        text-align: left; 
+        font-size: 16px; 
+        line-height: 1.5; 
+        }
+        .text-center {
+        text-align: center; 
+        }
     </style>
-    
 </head>
 <body>
     <!-- Modal Bootstrap -->
@@ -72,9 +118,10 @@
         </div>
         <!-- Pulsanti per estrattori -->
         <div class="text-center">
-            <button class="btn btn-info btn-lg mx-2 action-btn" id="dropboxBtn" onclick="fetchData('/extract/dropbox' , 'dropboxBtn')"><img src="{{ url_for('static', filename='dropbox.png') }}" alt="Logo" style="width: 40px; height: 40px;"> Dropbox</button>
-            <button class="btn btn-warning btn-lg mx-2 action-btn" id="gdriveBtn" onclick="fetchGDriveData('gdriveBtn')"><img src="{{ url_for('static', filename='drive.png') }}" alt="Logo" style="width: 40px; height: 40px;"> Google Drive</button>
-            <button class="btn btn-lg action-btn" style="background-color: #001f3f; color: white;" id="onedriveBtn" onclick="fetchOneDrive('onedriveBtn')"><img src="{{ url_for('static', filename='onedrive.png') }}" alt="Logo" style="width: 40px; height: 40px;"> OneDrive</button>
+            <button class="btn btn-info btn-lg mx-2 action-btn" id="dropboxBtn" onclick="fetchData('/extract/dropbox' , 'dropboxBtn') , updateServiceMessage('Dropbox');"><img src="{{ url_for('static', filename='dropbox.png') }}" alt="Logo" style="width: 40px; height: 40px;"> Dropbox</button>
+            <button class="btn btn-warning btn-lg mx-2 action-btn" id="gdriveBtn" onclick="fetchGDriveData('gdriveBtn') , updateServiceMessage('Google Drive');"><img src="{{ url_for('static', filename='drive.png') }}" alt="Logo" style="width: 40px; height: 40px;"> Google Drive</button>
+            <button class="btn btn-lg mx-2 action-btn" style="background-color: #001f3f; color: white;" id="onedriveBtn" onclick="fetchOneDrive('onedriveBtn') , updateServiceMessage('OneDrive');"><img src="{{ url_for('static', filename='onedrive.png') }}" alt="Logo" style="width: 40px; height: 40px;"> OneDrive</button>
+            <button class="btn btn-lg mx-2 action-btn" style="background-color: #1c9b09; color: white;" id="extractAllButton" onclick="startExtraction('extractAllButton'), updateServiceMessage('Tutti');"><img src="{{ url_for('static', filename='all.png') }}" alt="Logo" style="width: 40px; height: 40px;"> Estrai Tutto</button>
         </div>
         <!-- Modal di configurazione -->
         <div id="configModal" class="modal" tabindex="-1">
@@ -95,7 +142,7 @@
                                 </select>
                             </div>
                             <div id="dynamicFields">
-                                <!-- Campi dinamici aggiunti qui -->
+                                <!-- Campi dinamici -->
                             </div>
                             <button type="button" class="btn btn-success mt-3" onclick="saveConfig()">Salva Configurazione</button>
                         </form>
@@ -104,22 +151,34 @@
             </div>
         </div>
         <!-- Indicatore di caricamento -->
-<div id="loadingSpinner" class="text-center my-3" style="display: none;">
-    <div class="spinner-border text-primary" role="status">
-        <span class="visually-hidden">Caricamento...</span>
-    </div>
-</div>
+        <div id="loadingSpinner" class="text-center my-3" style="display: none;">
+            <br>
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Caricamento...</span>
+            </div>
+        </div>
         <!-- Tabella per i risultati -->
         <div class="container" style="margin-top: 1rem; margin-bottom: 2rem;">
-            <h2 class="text-center">Risultati</h2>
+            <h2 class="text-center">Risultati <span id="serviceMessage"></span></h2>
+            <div class="container text-center" id="connected-users-container" style="display: none; margin-top: 1rem;">
+                <h5>Utenti Connessi :</h5>
+                <div id="user-info" style="text-align: left; display: inline-block;">
+                    <!-- Utenti Connessi -->
+                </div>
+            </div>     
+            <br>           
             <table class="table table-striped">
                 <thead>
                     <tr>
+                        <th>Percorso</th>
                         <th>Nome File</th>
+                        <th>Tipo File</th>
                         <th>Autore</th>
-                        <th>Ultima Modifica</th>
                         <th>Versione</th>
+                        <th class="no-wrap">Ultima Modifica</th>
+                        <th class="no-wrap">Autore Ultima Modifica</th>
                         <th>Dimensione</th>
+                        <th>Service</th>
                     </tr>
                 </thead>
                 <tbody id="outputTable">
@@ -127,9 +186,36 @@
                 </tbody>
             </table>
         </div>
+        <div class="text-center">
+            <button class="btn btn-lg mx-2 action-btn" style="background-color: #e29e01; color: white;" id="downloadReportButton" onclick="downloadReport(serviceNow)" disabled><img src="{{ url_for('static', filename='download.png') }}" alt="Logo" style="width: 40px; height: 40px;"> Scarica Report</button>
+        </div>
     </div>
 </body>
 <script>
+    // Funzione per identificare il tipo di file
+    function getFileType(fileName) {
+        const extension = fileName.split('.').pop().toLowerCase(); // Ottiene l'estensione
+        return fileExtensionsMap[extension] || "Sconosciuto"; // Ritorna il tipo o "Sconosciuto"
+    }
+    function getFileURL(file, fonte) {
+        if ((file["Fonte"] === "GoogleDrive" || fonte === "GoogleDrive") && file["ID File"]) {
+            return `https://drive.google.com/file/d/${file["ID File"]}/view`;
+        }
+        if (file["Fonte"] === "Dropbox" && file["Nome File"]) {
+            return `https://www.dropbox.com/home?preview=${file["Nome File"]}`;
+        }
+        if (fonte === "DropBox" && file["Nome"]) {
+            return `https://www.dropbox.com/home?preview=${file["Nome"]}`;
+        }
+        if ((file["Fonte"] === "OneDrive"|| fonte === "OneDrive") && file["ID File"]) {
+            return `https://onedrive.live.com/?id=${file["ID File"]}`;
+        }
+        return "#"; // Se non c'è un link valido, il pulsante non farà nulla
+    }
+    let activeButtonId = null;
+    let currentConfig = {};
+    serviceNow = '';
+    const socket = io("http://127.0.0.1:5000", { transports: ["websocket"] });
     function showLoading(show) {
     const spinner = document.getElementById('loadingSpinner');
     spinner.style.display = show ? 'block' : 'none';
@@ -156,8 +242,6 @@
     const formattedMessage = message.replace(linkRegex, match => {
         return `<a href="${match}" target="_blank">${match}</a>`;
     });
-
-    // Aggiungi il codice a capo
     const finalMessage = `${formattedMessage}<br>Inserisci il codice : <b>${code}</b>`;
 
     const modalTitleElement = document.getElementById('popupModalTitle');
@@ -168,69 +252,132 @@
 
     const modal = new bootstrap.Modal(document.getElementById('popupModal'));
     modal.show();
-}
+    }
 
-    let activeButtonId = null;
-
-    const socket = io(); // Inizializza la connessione WebSocket
+    let receivedDataChunks = [];  // Memorizza i dati ricevuti a blocchi
 
     socket.on('output', (data) => {
-    try {
-        const parsedData = data.data;
+    console.log("WebSocket ricevuto:", data);
 
-        if (!parsedData || typeof parsedData !== 'object') {
+    try {
+        // Se data è una stringa, convertiamola in JSON
+        if (typeof data === "string") {
+            data = JSON.parse(data);
+            console.log("Dati convertiti in JSON:", data);
+        }
+
+        if (!data || typeof data !== 'object') {
             throw new Error("Formato dei dati non valido");
         }
-
-        // Gestione dei vari stadi
-        if (parsedData.stage === 1) {
-            showPopup(parsedData.message || "Messaggio non disponibile", parsedData.user_code);
-        } else if (parsedData.stage === 2) {
+     // Gestione standard dei vari stadi di comunicazione
+        if (data.stage === 1) {
+            console.log("Popup per autenticazione...");
+            showPopup(data.message || "Messaggio non disponibile", data.user_code);
+        } 
+        else if (data.data.stage === 1)
+        {
+            console.log("Popup per autenticazione...");
+            showPopup(data.data.message || "Messaggio non disponibile", data.data.user_code);
+        } 
+        else if (data.stage === 2 ) {
             showLoading(false);
-            const tableBody = document.getElementById('outputTable');
-            tableBody.innerHTML = ''; // Svuota la tabella
-
-            if (!parsedData.files || parsedData.files.length === 0) {
-                const noDataRow = `<tr><td colspan="5" class="text-center">Nessun file trovato</td></tr>`;
-                tableBody.innerHTML = noDataRow;
-                return;
+            if (data.data && data.data.length > 0) {
+                populateTableOneDrive(data.data, 'onedriveBtn');  
+                document.getElementById("downloadReportButton").disabled = false;
+            } else {
+                showPopup("Nessun file trovato in OneDrive.");
             }
-
-            parsedData.files.forEach(file => {
-                file.versions.forEach(version => {
-                    const row = `<tr>
-                        <td>${file.path || file.name || "N/A"}</td>
-                        <td>${version.author || file.author || "N/A"}</td>
-                        <td>${version.lastModified || "N/A"}</td>
-                        <td>${version.id || "N/A"}</td>
-                        <td>${version.size || "N/A"} bytes</td>
-                    </tr>`;
-                    tableBody.innerHTML += row;
-                });
-            });
-            if (activeButtonId) {
-            toggleButtonState(activeButtonId, false);
-            activeButtonId = null; // Resetta la variabile
+        } 
+        else if (data.data.stage === 2) {
+            showLoading(false);
+            if (data.data && data.data.length > 0) {
+                populateTableOneDrive(data.data, 'onedriveBtn');  
+            } else {
+                showPopup("Nessun file trovato in OneDrive.");
+            }
+        } 
+        else if (data.chunk && data.total_chunks) {
+            if (Array.isArray(data.data)) {
+                receivedDataChunks = receivedDataChunks.concat(data.data);
+            }
+            if (data.chunk === data.total_chunks) {
+                populateTableAll(receivedDataChunks, 'extractAllButton');
+                document.getElementById("downloadReportButton").disabled = false;
+            }
+            return;
         }
-        } else if (parsedData.stage === "error") {
-            showPopup(`Errore: ${parsedData.message}`);
-        } else {
-            console.warn("Stadio sconosciuto:", parsedData.stage);
+        else if (data.stage === "error") {
+            showPopup(`Errore: ${data.message}`);
         }
     } catch (error) {
         console.error("Errore durante l'elaborazione dei dati:", error);
         alert("Errore nella risposta ricevuta dal server.");
-        if (activeButtonId) {
-            toggleButtonState(activeButtonId, false);
-            activeButtonId = null; // Resetta la variabile
-        }
     }
     });
-
-        let currentConfig = {};
-
-        async function fetchGDriveData(buttonId) {
+    function startExtraction(buttonId) {
+        hideConnectedUsers();
+        toggleButtonState(buttonId, true);
+        showLoading(true);
+        fetch('/extract/all', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                console.log("Estrazione avviata:", data.message);
+            })
+            .catch(error => console.error("Errore:", error));
+    }
+    function downloadReport(serviceNow) {
+        window.location.href = `/download/${serviceNow}`;
+    }
+    function populateTableAll(files, buttonId) {
+    showLoading(false);
+    const tableBody = document.getElementById('outputTable');
+    tableBody.innerHTML = '';
+    files.forEach(file => {
+        const fileType = getFileType(file["Nome File"]);
+        const fileURL = getFileURL(file);
+        const row = `<tr>
+            <td>${file["Percorso"] || "N/A"}</td>
+            <td><a href="${fileURL}" target="_blank" class="file-link">${file["Nome File"] || "N/A"}</a></td>
+            <td>${fileType}</td>
+            <td>${file["Proprietario"] || "N/A"}</td>
+            <td>${file["ID Versione"] || "N/A"}</td> 
+            <td>${file["Ultima Modifica"] || "N/A"}</td>
+            <td>${file["Autore Ultima Modifica"] || "N/A"}</td>
+            <td>${file["Dimensione (byte)"] || "N/A"} bytes</td>
+            <td>${file["Fonte"] || "N/A"}</td>
+        </tr>`;
+        tableBody.innerHTML += row;
+    });
+    toggleButtonState(buttonId, false);
+    fetchUserInfo("Tutti");
+    }
+    function populateTableOneDrive(data, buttonId) {
+    showLoading(false);
+    const tableBody = document.getElementById('outputTable');
+    tableBody.innerHTML = ''; 
+    data.forEach(file => {
+        const fileType = getFileType(file["Nome File"]);
+        const fileURL = getFileURL(file, "OneDrive");
+        const row = `<tr>
+            <td>${file["Percorso"] || "N/A"}</td>
+            <td><a href="${fileURL}" target="_blank" class="file-link">${file["Nome File"] || "N/A"}</a></td>
+            <td>${fileType}</td>
+            <td>${file["Autore Versione"] || "N/A"}</td>
+            <td>${file["ID Versione"] || "N/A"}</td>
+            <td>${file["Ultima Modifica"] || "N/A"}</td>
+            <td>${file["Autore Ultima Modifica"] || "N/A"}</td>
+            <td>${file["Dimensione (byte)"] || "N/A"} bytes</td>
+            <td>OneDrive</td>
+        </tr>`;
+        tableBody.innerHTML += row;
+    });
+    toggleButtonState(buttonId, false);
+    fetchUserInfo("OneDrive");
+    }
+    async function fetchGDriveData(buttonId) {
         try {
+            hideConnectedUsers();
+            document.getElementById("downloadReportButton").disabled = true;
             toggleButtonState(buttonId, true);
             showLoading(true);
             const response = await fetch('/extract/gdrive', {
@@ -238,11 +385,10 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ folder_id: 'root' })
             });
-
             const result = await response.json();
-
             if (result.success) {
                 populateTableGdrive(result.data, buttonId);
+                document.getElementById("downloadReportButton").disabled = false;
             } else {
                 alert("Errore durante l'estrazione: " + result.error);
             }
@@ -263,11 +409,9 @@
         function closeConfigModal() {
             document.getElementById('configModal').style.display = 'none';
         }
-
         function updateFields() {
             const extractorType = document.getElementById('extractorType').value;
             const dynamicFields = document.getElementById('dynamicFields');
-
             dynamicFields.innerHTML = '';
 
             if (extractorType === 'dropbox') {
@@ -293,25 +437,21 @@
                         <input type="text" id="clientId" class="form-control" value="${onedriveConfig.clientId || ''}">
                     </div>`;
             } else if (extractorType === 'gdrive') {
-    const gdriveSettings = currentConfig.gdrive?.web || {};
-    const fields = Object.entries(gdriveSettings).map(([key, value]) => `
+        const gdriveSettings = currentConfig.gdrive?.web || {};
+        const fields = Object.entries(gdriveSettings).map(([key, value]) => `
         <div class="mb-3">
             <label class="form-label">${key.toUpperCase()}</label>
             <input type="text" class="form-control" value="${value || ''}" readonly>
         </div>`).join('');
 
-    dynamicFields.innerHTML = fields;
-
-    // Aggiungi il pulsante per caricare il file Secret.json
-    dynamicFields.innerHTML += `
+        dynamicFields.innerHTML = fields;
+        dynamicFields.innerHTML += `
         <div class="mb-3">
             <label for="secretFile" class="form-label">Carica il file secret.json:</label>
             <input type="file" id="secretFile" class="form-control">
         </div>`;
-}
-
         }
-
+        }
         async function saveConfig() {
             const extractorType = document.getElementById('extractorType').value;
             let payload = {};
@@ -334,7 +474,6 @@
                     alert("Seleziona un file.");
                     return;
                 }
-
                 const formData = new FormData();
                 formData.append('secret', file);
 
@@ -354,7 +493,7 @@
                     alert("Errore di rete: " + error.message);
                 }
 
-                return; // Esci per evitare di inviare una richiesta vuota
+                return; 
             }
 
             const response = await fetch(`/configure/${extractorType}`, {
@@ -369,17 +508,22 @@
         }
         async function fetchData(endpoint, buttonId) {
         try {
+            hideConnectedUsers();
+            document.getElementById("downloadReportButton").disabled = true;
             toggleButtonState(buttonId, true);
             showLoading(true);
             const response = await fetch(endpoint, { method: 'POST' });
             const result = await response.json();
             populateTable(result.data, buttonId);
+            document.getElementById("downloadReportButton").disabled = false;
         } catch (error) {
             alert("Errore di rete: " + error.message);
         }
     }
     async function fetchOneDrive(buttonId) {
         try {
+            hideConnectedUsers();
+            document.getElementById("downloadReportButton").disabled = true;
             activeButtonId = buttonId;
             toggleButtonState(buttonId, true);
             showLoading(true);
@@ -394,40 +538,51 @@
             alert("Errore di rete: " + err.message);
         }
     }
-    function populateTableGdrive(files, buttonId) {
+    function populateTableGdrive(data, buttonId) {
     showLoading(false);
     const tableBody = document.getElementById('outputTable');
-    tableBody.innerHTML = ''; // Svuota la tabella
-
-    files.forEach(file => {
-        file.revisions.forEach(revision => {
-            const row = `<tr>
-                <td>${file.file_name || "N/A"}</td>
-                <td>${file.owner || "N/A"}</td>
-                <td>${revision.modifiedTime || "N/A"}</td>
-                <td>${revision.readableVersion || "N/A"}</td>
-                <td>${revision.size || "N/A"} bytes</td>
-            </tr>`;
-            tableBody.innerHTML += row;
-        });
+    tableBody.innerHTML = '';
+    data.forEach(file => {
+        const fileType = getFileType(file["Nome File"]);
+        const fileURL = getFileURL(file, "GoogleDrive");
+        const row = `<tr>
+            <td>${file["Percorso"] || "N/A"}</td>
+            <td><a href="${fileURL}" target="_blank" class="file-link">${file["Nome File"] || "N/A"}</a></td>
+            <td>${fileType}</td>
+            <td>${file["Proprietario"] || "N/A"}</td>
+            <td>${file["Versione"] || "N/A"}</td> 
+            <td>${file["Ultima Modifica"] || "N/A"}</td>
+            <td>${file["Autore Ultima Modifica"] || "N/A"}</td>
+            <td>${file["Dimensione (byte)"] || "N/A"} bytes</td>
+            <td>Google Drive</td>
+        </tr>`;
+        tableBody.innerHTML += row;
     });
     toggleButtonState(buttonId, false);
+    fetchUserInfo("Google Drive");
     }
         function populateTable(files, buttonId) {
             showLoading(false);
             const tableBody = document.getElementById('outputTable');
-            tableBody.innerHTML = ''; // Svuota la tabella
+            tableBody.innerHTML = ''; 
             files.forEach(file => {
+                const fileType = getFileType(file["Nome"]);
+                const fileURL = getFileURL(file , "DropBox" );
                 const row = `<tr>
-                    <td>${file["Nome"] || "N/A"}</td>
-                    <td>${file["Autore"] || "N/A"}</td>
+                    <td>${file["Percorso"] || "N/A"}</td>
+                    <td><a href="${fileURL}" target="_blank" class="file-link">${file["Nome"] || "N/A"}</a></td>
+                    <td>${fileType}</td>
+                    <td>${file["Proprietario"] || "N/A"}</td>
+                    <td>${file["ID Versione"] || "N/A"}</td>
                     <td>${file["Ultima modifica (UTC +0)"] || "N/A"}</td>
-                    <td>${file["Versione"] || "N/A"}</td>
-                    <td>${file["Dimensione (byte)"] || "N/A"}</td>
+                    <td>${file["Autore Ultima Modifica"] || "N/A"}</td>
+                    <td>${file["Dimensione (byte)"] || "N/A"} bytes</td>
+                    <td>Dropbox</td>
                 </tr>`;
                 tableBody.innerHTML += row;
             });
             toggleButtonState(buttonId, false);
+            fetchUserInfo("Dropbox");
         }
 async function uploadSecret(event) {
             event.preventDefault();
@@ -437,7 +592,6 @@ async function uploadSecret(event) {
                 alert("Seleziona un file");
                 return;
             }
-
             const formData = new FormData();
             formData.append('secret', file);
 
@@ -451,5 +605,92 @@ async function uploadSecret(event) {
                 alert("Errore di rete: " + error.message);
             }
         }
+    function updateServiceMessage(service) {
+    serviceNow = service;
+    const messageElement = document.getElementById("serviceMessage");
+    messageElement.textContent = `per ${service}`;
+    }
+    const fileExtensionsMap = {
+        "txt": "Testuale",
+        "doc": "Documento Word",
+        "docx": "Documento Word",
+        "rtf": "Documento Word",
+        "xls": "Foglio Excel",
+        "xlsx": "Foglio Excel",
+        "pdf": "PDF",
+        "jpg": "Immagine",
+        "jpeg": "Immagine",
+        "png": "Immagine",
+        "gif": "Immagine",
+        "mp3": "Audio",
+        "wav": "Audio",
+        "mp4": "Video",
+        "mov": "Video",
+        "zip": "Archivio compresso",
+        "rar": "Archivio compresso",
+        "csv": "Foglio CSV",
+        "json": "File JSON",
+        "xml": "File XML",
+        "html": "File HTML",
+        "js": "File JavaScript",
+        "css": "File CSS",
+        "py": "File Python",
+        "java": "File Java",
+        "c": "File C",
+        "cpp": "File C++"
+    };
+    async function fetchUserInfo(serviceNow) {
+    try {
+        const connectedUsersContainer = document.getElementById("connected-users-container");
+        const userContainer = document.getElementById("user-info");
+
+        if (!connectedUsersContainer || !userContainer) {
+            console.error("Errore DOM");
+            return;
+        }
+        connectedUsersContainer.style.display = "none";
+        userContainer.innerHTML = ""; 
+        const response = await fetch('/get-user');
+        const result = await response.json();
+
+        if (result.success) {
+            if (serviceNow === "Tutti") {
+                if (result.users["Dropbox"]) {
+                    const dropboxUser = result.users["Dropbox"];
+                    const dropboxElement = document.createElement("div");
+                    dropboxElement.innerHTML = `<strong>Dropbox =></strong> ${dropboxUser}`;
+                    userContainer.appendChild(dropboxElement);
+                }
+                if (result.users["Google Drive"]) {
+                    const gdriveUser = result.users["Google Drive"];
+                    const gdriveElement = document.createElement("div");
+                    gdriveElement.innerHTML = `<strong>Google Drive =></strong> ${gdriveUser}`;
+                    userContainer.appendChild(gdriveElement);
+                }
+                if (result.users["OneDrive"]) {
+                    const onedriveUser = result.users["OneDrive"];
+                    const onedriveElement = document.createElement("div");
+                    onedriveElement.innerHTML = `<strong>OneDrive =></strong> ${onedriveUser}`;
+                    userContainer.appendChild(onedriveElement);
+                }
+            } else if (result.users[serviceNow]) {
+                const user = result.users[serviceNow];
+                const userElement = document.createElement("div");
+                userElement.innerHTML = `<strong>${user}</strong>`;
+                userContainer.appendChild(userElement);
+            }
+            if (userContainer.innerHTML.trim() !== "") {
+                connectedUsersContainer.style.display = "block";
+            }
+        } else {
+            console.log("Nessun utente autenticato.");
+        }
+    } catch (error) {
+        console.error("Errore nel recupero dell'utente:", error);
+    }
+    }
+    function hideConnectedUsers() {
+        document.getElementById("connected-users-container").style.display = "none";
+    }
     </script>
 </html>
