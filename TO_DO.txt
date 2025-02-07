@@ -1,6 +1,1 @@
--Implementare Google drive business e box
--Visualizzare quale servizio è in uso (quale utenza)
--Generazione report leggibile per ognuno
--Report unificato dei servizi
--Visualizzare i file (file cliccabili)
--Indicare tipo di file (txt,xls…)
+- Implementazione Google Drive Business e Box
